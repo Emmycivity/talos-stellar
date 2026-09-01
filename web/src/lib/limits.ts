@@ -1,6 +1,6 @@
 export type LimitResult =
-  | { ok: true; limit: number }
-  | { ok: false; response: Response };
+  | { ok: true, limit: number }
+  | { ok: false, response: Response };
 
 export function parseLimit(
   value: string | null,
