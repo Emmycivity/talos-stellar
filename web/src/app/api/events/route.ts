@@ -113,7 +113,8 @@ export async function GET(request: NextRequest) {
       db
         .select({ talosId: tlsPatrons.talosId })
         .from(tlsPatrons)
-        .where(eq(tlsPatrons.stellarPublicKey, walletAddr)),
+        .where(eq(tlsPatrons.stellarPublicKey, walletAddr))
+        .limit(MAX_EVENT_LIMIT),
       db
         .select({ id: tlsTalos.id })
         .from(tlsTalos)
@@ -124,7 +125,8 @@ export async function GET(request: NextRequest) {
             eq(tlsTalos.investorPublicKey, walletAddr),
             eq(tlsTalos.treasuryPublicKey, walletAddr),
           ),
-        ),
+        )
+        .limit(MAX_EVENT_LIMIT),
     ]);
 
     return [
@@ -132,7 +134,7 @@ export async function GET(request: NextRequest) {
         ...patronRows.map((r) => r.talosId),
         ...ownerRows.map((r) => r.id),
       ]),
-    ];
+    ].slice(0, MAX_EVENT_LIMIT);
   }
 
   const stream = new ReadableStream({
