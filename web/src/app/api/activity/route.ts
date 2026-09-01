@@ -40,9 +40,6 @@ export async function GET(request: Request) {
 
     return Response.json({ stats, transactions, nextCursor });
   } catch {
-    return Response.json(
-      { error: "An unexpected error occurred" },
-      { status: 500 },
-    );
+    return Response.json({ error: "An unexpected error occurred" }, { status: 500 });
   }
 }
