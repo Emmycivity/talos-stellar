@@ -53,6 +53,28 @@ export { getSseMetrics } from "@/lib/sse-pool";
 const POLL_INTERVAL_MS = 8_000;
 const PING_INTERVAL_MS = 30_000;
 
+const DEFAULT_EVENT_LIMIT = 100;
+const MAX_EVENT_LIMIT = 500;
+
+function resolveLimit(value: string | null):
+  | { ok: true; limit: number }
+  | { ok: false; message: string } {
+  if (value === null) {
+    return { ok: true, limit: DEFAULT_EVENT_LIMIT };
+  }
+  if (!/^\d+$/.test(value)) {
+    return { ok: false, message: "limit must be a positive integer" };
+  }
+  const parsed = Number(value);
+  if (parsed === 0) {
+    return { ok: false, message: "limit must be a positive integer" };
+  }
+  if (parsed > MAX_EVENT_LIMIT) {
+    return { ok: false, message: `limit must not exceed ${MAX_EVENT_LIMIT}` };
+  }
+  return { ok: true, limit: parsed };
+}
+
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
@@ -61,6 +83,13 @@ export async function GET(request: NextRequest) {
   if (!wallet) {
     return new Response("wallet parameter required", { status: 400 });
   }
+
+  const limitParam = request.nextUrl.searchParams.get("limit");
+  const limitResult = resolveLimit(limitParam);
+  if (!limitResult.ok) {
+    return new Response(limitResult.message, { status: 400 });
+  }
+  const eventLimit = limitResult.limit;
 
   // Reject before allocating any resources when the pool is full.
   if (!acquireConnection()) {
@@ -109,17 +138,20 @@ export async function GET(request: NextRequest) {
   const stream = new ReadableStream({
     async start(controller) {
       let isClosed = false;
+      let eventsSent = 0;
       const pollTimer = setInterval(poll, POLL_INTERVAL_MS);
       const pingTimer = setInterval(() => {
         if (!send("ping", { ts: Date.now() })) cleanup();
       }, PING_INTERVAL_MS);
 
       function send(event: string, data: unknown): boolean {
-        if (isClosed) return false;
+        if (isClosed || eventsSent >= eventLimit) return false;
         try {
           controller.enqueue(
             `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`,
           );
+          eventsSent++;
+          if (eventsSent >= eventLimit) cleanup();
           return true;
         } catch {
           return false;
