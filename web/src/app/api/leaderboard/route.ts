@@ -3,7 +3,7 @@ import { db } from "@/db";
 import { tlsTalos, tlsPatrons, tlsActivities, tlsRevenues } from "@/db/schema";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { badRequest, internalError } from "@/lib/api-response";
-import { parseLimit, LEADERBOARD_DEFAULT_LIMIT, LEADERBOARD_MAX_LIMIT } from "@/lib/limits";
+import { parseLimit, LEADERBOARD_DEFAULT_LIMIT, LEADERBOARD_MAX_LIMIT, MAX_CURSOR_LENGTH } from "@/lib/limits";
 
 // GET /api/leaderboard — Ranking data with cursor-based pagination
 export async function GET(request: NextRequest) {
@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     const patronCount = db
       .select({
         talosId: tlsPatrons.talosId,
-        count: sql<number>count(*)::int`.as("patronCount"),
+        count: sql<number>`count(*)::int`.as("patronCount"),
       })
       .from(tlsPatrons)
       .groupBy(tlsPatrons.talosId)
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     const activityCount = db
       .select({
         talosId: tlsActivities.talosId,
-        count: sql<number>count(*)::int`.as("activityCount"),
+        count: sql<number>`count()::int`.as("activityCount"),
       })
       .from(tlsActivities)
       .groupBy(tlsActivities.talosId)
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
     const revenueSum = db
       .select({
         talosId: tlsRevenues.talosId,
-        total: sql<number>coalesce(sum(${tlsRevenues.amount}), 0)::float`.as("revenueTotal"),
+        total: sql<number>`coalesce(sum(${tlsRevenues.amount}), 0)::float`.as("revenueTotal"),
       })
       .from(tlsRevenues)
       .groupBy(tlsRevenues.talosId)
@@ -45,10 +45,14 @@ export async function GET(request: NextRequest) {
 
     let parsedCursor: [number, string] | null = null;
     if (cursor) {
+      if (cursor.length > MAX_CURSOR_LENGTH) {
+        return badRequest(request, "Invalid cursor");
+      }
       try {
         const decoded = JSON.parse(Buffer.from(cursor, "base64").toString());
         if (
           Array.isArray(decoded) &&
+          decoded.length === 2 &&
           typeof decoded[0] === "number" &&
           typeof decoded[1] === "string"
         ) {
@@ -64,7 +68,9 @@ export async function GET(request: NextRequest) {
     if (parsedCursor) {
       const [cursorRevenue, cursorId] = parsedCursor;
       conditions.push(
-        sql`coalesce(${revenueSum.total}, 0) < ${cursorRevenue}
+        sql`coalesce(${
+revenueSum.total}, 0) < ${
+cursorRevenue}
             OR (coalesce(${revenueSum.total}, 0) = ${cursorRevenue}
                 AND ${tlsTalos.id} < ${cursorId})`,
       );
@@ -80,7 +86,8 @@ export async function GET(request: NextRequest) {
         totalSupply: tlsTalos.totalSupply,
         patronCount: patronCount.count,
         activityCount: activityCount.count,
-        totalRevenue: sql<number>coalesce(${revenueSum.total}, 0)`,
+        totalRevenue: sql<number>`coalesce(${
+revenueSum.total}, 0)`,
       })
       .from(tlsTalos)
       .leftJoin(patronCount, eq(tlsTalos.id, patronCount.talosId))
