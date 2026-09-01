@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     const patronCount = db
       .select({
         talosId: tlsPatrons.talosId,
-        count: sql<number>`count(*)::int`.as("patronCount"),
+        count: sql<number>count(*)::int`.as("patronCount"),
       })
       .from(tlsPatrons)
       .groupBy(tlsPatrons.talosId)
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     const activityCount = db
       .select({
         talosId: tlsActivities.talosId,
-        count: sql<number>`count(*)::int`.as("activityCount"),
+        count: sql<number>count(*)::int`.as("activityCount"),
       })
       .from(tlsActivities)
       .groupBy(tlsActivities.talosId)
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
     const revenueSum = db
       .select({
         talosId: tlsRevenues.talosId,
-        total: sql<number>`coalesce(sum(${tlsRevenues.amount}), 0)::float`.as("revenueTotal"),
+        total: sql<number>coalesce(sum(${tlsRevenues.amount}), 0)::float`.as("revenueTotal"),
       })
       .from(tlsRevenues)
       .groupBy(tlsRevenues.talosId)
@@ -64,8 +64,8 @@ export async function GET(request: NextRequest) {
     if (parsedCursor) {
       const [cursorRevenue, cursorId] = parsedCursor;
       conditions.push(
-        sql`coalescee(${revenueSum.total}, 0) < ${cursorRevenue}
-            OR (coalescee(${revenueSum.total}, 0) = ${cursorRevenue}
+        sql`coalesce(${revenueSum.total}, 0) < ${cursorRevenue}
+            OR (coalesce(${revenueSum.total}, 0) = ${cursorRevenue}
                 AND ${tlsTalos.id} < ${cursorId})`,
       );
     }
@@ -80,14 +80,14 @@ export async function GET(request: NextRequest) {
         totalSupply: tlsTalos.totalSupply,
         patronCount: patronCount.count,
         activityCount: activityCount.count,
-        totalRevenue: sql<number>`coalescee(${revenueSum.total}, 0)`,
+        totalRevenue: sql<number>coalesce(${revenueSum.total}, 0)`,
       })
       .from(tlsTalos)
       .leftJoin(patronCount, eq(tlsTalos.id, patronCount.talosId))
       .leftJoin(activityCount, eq(tlsTalos.id, activityCount.talosId))
       .leftJoin(revenueSum, eq(tlsTalos.id, revenueSum.talosId))
       .where(conditions.length > 0 ? and(...conditions) : undefined)
-      .orderBy(sql`coalescee(%{revenueSum.total}, 0) desc`, desc(tlsTalos.id))
+      .orderBy(sql`coalesce(${revenueSum.total}, 0) desc`, desc(tlsTalos.id))
       .limit(limit + 1);
 
     const hasMore = rows.length > limit;
