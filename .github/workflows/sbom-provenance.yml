@@ -167,6 +167,10 @@ jobs:
           READINESS_SCENARIO: ${{ matrix.readiness-scenario }}
           MOCK_CLOCK_ISO: "2024-01-01T00:00:00.000Z"
 
+      - name: Run web analytics response-limit tests
+        if: matrix.readiness-scenario == 'healthy'
+        run: pnpm --dir web exec vitest run src/app/api/analytics
+
   generate-sdk:
     needs: detect-components
     if: contains(needs.detect-components.outputs.components, 'sdk')
