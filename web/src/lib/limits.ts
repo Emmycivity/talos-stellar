@@ -41,5 +41,5 @@ export const LEADERBOARD_MAX_LIMIT = 100;
 export const PROPOSALS_DEFAULT_LIMIT = 50;
 export const PROPOSALS_MAX_LIMIT = 100;
 
-export const DASHBOARD_DEFAULT_LIMIT = 50;
+export const DASHBOARD_DEFAULT_LIMIT = 20;
 export const DASHBOARD_MAX_LIMIT = 100;
