@@ -180,6 +180,7 @@ export async function GET(request: NextRequest) {
       request.signal.addEventListener("abort", cleanup);
 
       send("ping", { ts: Date.now() });
+      if (isClosed) return;
 
       let talosIds: string[] = [];
       try {
