@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     const activityCount = db
       .select({
         talosId: tlsActivities.talosId,
-        count: sql<number>`count()::int`.as("activityCount"),
+        count: sql<number>`count(*)::int`.as("activityCount"),
       })
       .from(tlsActivities)
       .groupBy(tlsActivities.talosId)
